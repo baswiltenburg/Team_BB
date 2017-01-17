@@ -17,6 +17,9 @@ source('R/Lesson6_functions.R')
 
 # Results of all separate functions are assigned to variables. 
 # Assigning results to variables is necessary to use the results in follow up functions.
+
+preprocessing()
+
 industrial_railway_RD <- reproject()
 
 buffer_railway_RD <- buffer(industrial_railway_RD[[1]])
