@@ -1,0 +1,145 @@
+---
+title: "Lesson 8"
+author: 'Team BB: Bas Wiltenburg, Bram Schipper'
+date: "January 19th, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE, echo=FALSE}
+source("main.R")
+```
+## Welcome to the report of the results of Team BB 
+
+This report shows the **results** of the excersice in lesson 8. 
+In this excersice we have learned about the following applications: 
+
+* - How to extract information from matrixes, dataframes and rasterlayers;*
+* - How to modify and add information to matrixes, dataframes and rasterlayers;*
+* - How to create linear regressoin models;*
+* - How to use the results of a linear regression model;*
+* - How to do zonal analysis;*
+* - How to use and set-up .rmd files and create a .HTML for showing or presenting your results*
+
+The goal of this assignment was to set up a linear regression model and calculate a vcf-parameter out of all spectral bands of the Landsat 7 sattelite. 
+In the end, we compared the known vcf-parameter with the predicted vcf-parameter, coming from the linear regression model. We did these comparison both on the whole raster-image and on the specified classes "wetland", "forest" and "cropland". The comparison is in terms of **root means square error**.
+
+
+# Step 1: Create scatterplots
+In the first step we create scatters plots of all spectral bands against the known vcf-parameters. From these scatter plots, you can draw a conclusion about the corrolation and importance of a single band and the known vcf-parameter. All scatterplots are shown in the image below:
+
+**All bands plotted against the vcf-parameter**
+
+![Corrolatoin between bands and VCF](output/scatterplots.png)
+
+The conclusion we can draw from this scatterplot, is that all single sprectral bands are not really corrolated with the VCF. Therefore we expect that all bands will show a rather equeal importance-factor in the linear regression model. 
+
+
+# Step 2: Linear regression model to predict VCF
+The second step was to set up a linear regression model. This linear regression model calculates a parameter for each single spectral band. These parameter describes the importance of each single band with respect to the VCF. 
+
+**The vcf is calculated with the following function:**
+```{r, echo=TRUE}
+estimate_VCF <- function(dataframe){
+  vcf_model <- lm(VCF ~ band1 + band2 + band3 + band4 + band5 + band7, data=dataframe)
+  cols <- c("orange", "dark green", "light blue")
+  vcf_predict <- predict(Gewata, model=vcf_model, na.rm=TRUE, col = cols)
+  vcf_predict[vcf_predict < 0] <- NA
+  vcf_predict[vcf_predict > 100] <- NA
+  values_vcf_predict <- getValues(vcf_predict)
+  dataframe$predicted_VCF <- values_vcf_predict
+  result <- list(vcf_predict, values_vcf_predict, vcf_model)
+  return(result)
+}
+```
+
+The results of this linear regresion model are presented in the table below. The results show that all the 6 spectral bands are of big importance with respect to the VCF. This can also be explained by the scatter plots, where all bands show a uncorrolated relation.  
+
+**Results linear regression model**
+```{r, echo=TRUE}
+summary(vcf_model)
+```
+
+
+# Step 3: Present the predicted vcf-factor according to the linear regression model
+Both the predicted vcf-parameters (coming from the linear regression model) and the known vcf-parameters are presented in the images below.
+
+**The known vcf-parameter**
+
+```{r, echo=FALSE}
+plot(Gewata$VCF)
+```
+
+**The predicted vcf-parameter according to the regression model**
+
+```{r, echo=FALSE}
+plot(vcf_predict)
+```
+
+
+# Step 4: Calculate the root mean square error of the whole image
+In step 4, we calculate the root mean square of the whole image. These is calulated by the following code:
+
+```{r, echo=TRUE}
+rmse_general <- function(predict, real){
+  vcf_predict_DF <- as.data.frame(predict)
+  names(vcf_predict_DF) <- c("predicted_vcf")
+  Gewata_VSF_DF <- as.data.frame(real)
+  names(Gewata_VSF_DF) <- c("real_vcf")
+  rmse_general <- sqrt(mean((vcf_predict_DF$predicted_vcf - Gewata_VSF_DF$real_vcf)^2 , na.rm = TRUE))
+  return(rmse_general)
+}
+```
+
+**The general RMSE**
+```{r, echo=FALSE}
+head(rmse_general1)
+```
+
+
+# Step 5: Calculate the root mean square error per class
+The calculate the root mean square error per class, we first rasterize the class polygons and gave it proper names and colors. 
+After that, the script below shows how the root mean square error per class is calculated. We have used the zonal application for this. 
+
+```{r, echo=TRUE}
+rmse_per_class <- function(predict, real){
+  trainingPoly@data$Code <- as.numeric(trainingPoly@data$Class)
+  classes <- rasterize(trainingPoly, predict, field='Code')
+  cols <- c("orange", "dark green", "light blue")
+  # plot(classes, col=cols, legend=FALSE)
+  names(predict) <- "vcf_predicted"
+  difference_VCF <- predict - real
+  power2_difference_VCF <- difference_VCF^2
+  zonal_mean <- zonal(power2_difference_VCF, classes, fun="mean", na.rm=TRUE)
+  zonal_mean_DF <- as.data.frame(zonal_mean)
+  zonal_rmse<- sqrt(zonal_mean)
+  zonal_rmse_DF <- as.data.frame(zonal_rmse)
+  zonal_rmse_DF$zone <- zonal_mean_DF$zone
+  names(zonal_rmse_DF) <- c("class", "RMSE")
+  zonal_rmse_DF$class_name <- unique(trainingPoly@data$Class)
+  return(zonal_rmse_DF)
+}
+```
+
+**The RMSE per class**
+```{r, echo=FALSE}
+head(rmse_per_class1)
+```
+
+The table above shows the final results of the root mean square error for different classes.
+
+Thanks for reading and commenting our project!
+
+
+**Kind regards,**
+
+**Bas Wiltenburg and Bram Schipper**
+
+
+# Recommanded websites:
+
+* [Our Github: https://github.com/baswiltenburg/Team_BB](https://github.com/baswiltenburg/Team_BB)
+* [Wageningen University](www.wur.nl)
